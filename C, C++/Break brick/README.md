@@ -10,3 +10,5 @@
 - Bumping on the side or top is invalid
 - I'll only admit to hitting the bottom
 - Game over when all the bricks are cleared
+
+![image](https://user-images.githubusercontent.com/53115254/93495059-adf99d00-f948-11ea-8092-bed7b65ee8c0.png)
