@@ -19,3 +19,7 @@
 0 (oh), 1 (left), 0 (oh), 1 (left),
 
 - a total of seven cases
+
+### Action Time Comparison Graph (Units: Seconds)
+
+![image](https://user-images.githubusercontent.com/53115254/93734873-00231280-fc16-11ea-9fb7-7c354721cdb6.png)
