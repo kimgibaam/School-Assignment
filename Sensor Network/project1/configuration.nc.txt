@@ -1,0 +1,49 @@
+includes Opt_App;
+
+configuration Opt_TLCD_AppC {}
+implementation {
+  components MainC, Opt_TLCD_AppM as Opt_AppM, LedsC;
+
+  Opt_AppM.Boot  -> MainC;
+  Opt_AppM.Leds  -> LedsC;
+
+  // Interaction Components
+  components InteractionC;
+  Opt_AppM.Interaction -> InteractionC;
+
+  components SCSuartDBGC;
+  Opt_AppM.SCSuartDBGstd -> SCSuartDBGC;
+  Opt_AppM.SCSuartDBG -> SCSuartDBGC;
+
+components new TimerMilliC() as TM1,
+ new TimerMilliC() as TM2,
+ new TimerMilliC() as TM3,
+ new TimerMilliC() as TM4,
+ new TimerMilliC() as TM5,
+ new TimerMilliC() as TM6,
+ new TimerMilliC() as TM7,
+ new TimerMilliC() as TM8,
+ new TimerMilliC() as TM9,
+ new TimerMilliC() as TM10,
+new TimerMilliC() as TM11,
+new TimerMilliC() as TM12,
+new TimerMilliC() as TM13;
+
+  
+  Opt_AppM.Boot -> MainC;
+  Opt_AppM.Leds -> LedsC;
+  Opt_AppM.Ron->TM1;
+ Opt_AppM.Gon->TM2;
+ Opt_AppM.Yon->TM3;
+  Opt_AppM.Roff->TM4;
+ Opt_AppM.Goff->TM5;
+ Opt_AppM.Yoff->TM6;
+ Opt_AppM.Rremain->TM7;
+ Opt_AppM.Gremain->TM8;
+ Opt_AppM.Yremain->TM9;
+ Opt_AppM.TLCD->TM10;
+ Opt_AppM.Cnt->TM11;
+ Opt_AppM.Cntstart->TM12;
+ Opt_AppM.Buffer->TM13;
+
+}

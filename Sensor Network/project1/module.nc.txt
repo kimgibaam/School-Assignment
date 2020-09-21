@@ -1,0 +1,209 @@
+#define R_remainder 1000    // R 나머지
+#define G_remainder 2000    // G 나머지
+#define Y_remainder 7000    // Y 나머지
+#define R_LED 5000    // R LED 주기
+#define G_LED 7000    // G LED 주기
+#define Y_LED 9000    // Y LED 주기
+
+
+module Opt_TLCD_AppM {
+
+  uses {
+    interface Boot;
+    interface Leds;
+interface Timer<TMilli> as Ron;
+interface Timer<TMilli> as Gon;
+interface Timer<TMilli> as Yon;
+interface Timer<TMilli> as Roff;
+interface Timer<TMilli> as Goff;
+interface Timer<TMilli> as Yoff;
+interface Timer<TMilli> as Rremain;
+interface Timer<TMilli> as Gremain;
+interface Timer<TMilli> as Yremain;
+interface Timer<TMilli> as Cnt; 
+interface Timer<TMilli> as Cntstart; 
+
+interface Timer<TMilli> as TLCD; 
+interface Timer<TMilli> as Buffer; 
+
+
+    interface Interaction;
+    interface StdControl as SCSuartDBGstd;
+    interface SCSuartDBG;
+  }
+
+} implementation {
+
+
+int num = 0;
+
+ #define MyOPT_Type OPT_TEXTLCD
+
+  norace App_struct_t AP_Frame;
+  norace uint8_t MsgBuff[64], myAppType, myOptType, TestSeq=0;
+
+  void SensorsPrint (uint8_t App_size);
+
+  //////////////////////////////////////////////////////////
+  task void TryToConfigure() {call Interaction.StartConfiguration (&AP_Frame);}
+  task void TryToSetTimer()  {call Interaction.SetSamplingTime(1000);}
+  //////////////////////////////////////////////////////////
+
+  event void Boot.booted() {
+    call SCSuartDBGstd.start();
+    post TryToConfigure();
+
+ call Rremain.startOneShot(R_remainder);
+ call Gremain.startOneShot(G_remainder);
+ call Yremain.startOneShot(Y_remainder);
+ call Cntstart.startOneShot(10);
+  }
+
+  //////////////////////////////////////////////////////////
+
+  event void Interaction.StartDoneConfiguration(uint8_t appType, uint8_t optType) {
+
+    sprintf(MsgBuff, "%d myAppType:%X, myOptType:%X\r\n", TOS_NODE_ID, appType, optType);
+    call SCSuartDBG.UARTSend(MsgBuff, strlen(MsgBuff));
+ 
+    if (optType != MyOPT_Type) {
+ post TryToConfigure();
+ return;
+    }
+    
+  
+
+    myAppType = appType;
+    myOptType = optType;
+
+    call TLCD.startPeriodic(Default_Sampling_Time);
+  }
+
+  event void Interaction.getSensorDataDone(App_struct_t *App_Payload, uint8_t App_size){
+    sprintf(MsgBuff, "TLCD SW:%d\r\n", AP_Frame.AppData.sensor.Sdata.CHA_data[0]);
+    call SCSuartDBG.UARTSend(MsgBuff, strlen(MsgBuff));
+  }
+
+  event void Interaction.Urgency_Data (uint8_t *Urgency_Payload, uint8_t len) {
+  }
+
+  //////////////////////////////////////////////////////////
+
+event void Rremain.fired()  {
+
+     call Ron.startPeriodic(R_LED);
+  }
+ event void Gremain.fired()  {
+   
+  call Gon.startPeriodic(G_LED);
+  }
+ event void Yremain.fired()  {
+
+ call Yon.startPeriodic(Y_LED);
+  }
+ event void Cntstart.fired()  {
+
+   call Cnt.startPeriodic(1000);
+  }
+
+
+ event void Cnt.fired()  {
+  
+ num++; 
+
+ if( (!(call Leds.get()&LEDS_LED0) && !(call Leds.get()&LEDS_LED1)) && !(call Leds.get()&LEDS_LED2) )
+ { 
+ call Ron.stop();
+ call Gon.stop();
+ call Yon.stop();
+ call Roff.stop();
+ call Goff.stop();
+ call Yoff.stop();
+ call Cnt.stop();
+
+call TLCD.startOneShot(0);   
+call Buffer.startOneShot(7000);
+
+
+ }
+else
+ {
+ call TLCD.startOneShot(0);  
+ }
+   
+}
+
+ 
+
+ event void Buffer.fired()  {
+
+ call Roff.startOneShot(0);
+ call Goff.startOneShot(0);
+ call Yoff.startOneShot(0);
+
+ call Cntstart.startOneShot(10);
+ call Ron.startPeriodic(R_LED);
+ call Gon.startPeriodic(G_LED);
+ call Yon.startPeriodic(Y_LED);
+  }
+
+ 
+
+event void Ron.fired()  {
+    call Leds.led0On(); 
+ call Roff.startOneShot(300);
+    
+  }
+ event void Gon.fired()  {
+   
+   call Leds.led1On();
+ call Goff.startOneShot(300);
+    
+  }
+ event void Yon.fired()  {
+
+  call Leds.led2On();
+ call Yoff.startOneShot(300); 
+  }
+
+
+event void Roff.fired()  {
+    call Leds.led0Off(); 
+  }
+ event void Goff.fired()  {
+   call Leds.led1Off();
+  }
+ event void Yoff.fired()  {
+  call Leds.led2Off();
+    
+  }
+
+ 
+
+
+/////////////////////////////
+
+  event void TLCD.fired(){
+    Cmd_struct_t CMD_Frame;
+    char SetDataBuff[32];
+
+    CMD_Frame.CMDType = PACKET_CONTROL;
+    CMD_Frame.CMD_Data.OptConfig.packetType = PACKET_CONTROL;
+    CMD_Frame.CMD_Data.OptConfig.optType = OPT_TEXTLCD;
+
+ CMD_Frame.CMD_Data.OptConfig.subCmd1 = LCDLine1;
+
+ 
+
+sprintf(SetDataBuff, "Answer:%d               ", num);
+
+
+    memcpy(CMD_Frame.CMD_Data.OptConfig.ConfigData.GeneralData, SetDataBuff, 16);
+
+    call Interaction.Process_CMD((void*)&CMD_Frame, sizeof(Cmd_struct_t));
+    return;
+  }
+
+  //////////////////////////////////////////////////////////
+
+} 
