@@ -1,0 +1,31 @@
+includes Opt_App;
+
+configuration BaseStationC {
+}
+implementation {
+  components MainC, BaseStationP, LedsC;
+  components ActiveMessageC as Radio;
+  components new TimerMilliC() as Timer1,new TimerMilliC() as Timer2,
+new TimerMilliC() as Timer3,
+new UltraredSensorC() as USensor, new SensirionSht11C() as SensorHT;
+
+  BaseStationP.Boot -> MainC;
+  BaseStationP.Timer1 -> Timer1;
+  BaseStationP.Timer2 -> Timer2;
+  BaseStationP.Timer3 -> Timer3;
+  BaseStationP.RadioControl -> Radio;
+  BaseStationP.RadioReceive -> Radio.Receive;
+  BaseStationP.Leds -> LedsC;
+
+  components InteractionC;
+  BaseStationP.Interaction -> InteractionC;
+
+  components SCSuartDBGC;
+  BaseStationP.SCSuartDBGstd -> SCSuartDBGC;
+  BaseStationP.SCSuartDBG -> SCSuartDBGC;
+
+  BaseStationP.HRead -> SensorHT.Humidity;
+  BaseStationP.TRead -> SensorHT.Temperature;
+  BaseStationP.URead -> USensor;
+}
+

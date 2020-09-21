@@ -1,0 +1,25 @@
+
+configuration OscilloscopeAppC { }
+implementation
+{
+  components OscilloscopeC, MainC, LedsC,
+    new TimerMilliC() as TM1, new TimerMilliC() as TM2, new TimerMilliC() as TM3, 
+    ActiveMessageC, 
+    new AMSenderC(AM_OSCILLOSCOPE), new AMReceiverC(AM_OSCILLOSCOPE), 
+    new UltraredSensorC() as USensor, new SensirionSht11C() as SensorHT;
+
+  OscilloscopeC.Boot -> MainC;
+  OscilloscopeC.RadioControl -> ActiveMessageC;
+  OscilloscopeC.AMSend -> AMSenderC;
+  OscilloscopeC.Timer1 -> TM1;
+  OscilloscopeC.Timer2 -> TM2;
+  OscilloscopeC.Timer3 -> TM3;
+  OscilloscopeC.Leds -> LedsC;
+  OscilloscopeC.HRead -> SensorHT.Humidity;
+  OscilloscopeC.TRead -> SensorHT.Temperature;
+  OscilloscopeC.URead -> USensor;
+  OscilloscopeC.Packet -> ActiveMessageC;
+
+}
+
+

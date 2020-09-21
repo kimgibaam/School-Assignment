@@ -1,0 +1,243 @@
+module BaseStationP {
+  uses {
+    interface Boot;
+    interface SplitControl as RadioControl;           // 통신에 쓰일 인터페이스들
+    interface Receive as RadioReceive[am_id_t id];
+    interface Leds;
+    interface Interaction;                              // lcd 에 쓰일 인터페이스들
+    interface StdControl as SCSuartDBGstd;
+    interface SCSuartDBG;
+    interface Timer<TMilli> as Timer1;          //타이머들
+    interface Timer<TMilli> as Timer2;
+    interface Timer<TMilli> as Timer3;
+    interface Read<uint16_t> as TRead;          // 온도센서
+    interface Read<uint16_t> as HRead;         // 습도센서
+    interface Read<uint16_t> as URead;         // 적외선센서
+  }
+}
+
+implementation
+{
+
+#define MyOPT_Type OPT_TEXTLCD             // 기존 lcd 예제 내용
+  norace App_struct_t AP_Frame;
+  norace uint8_t MsgBuff[64], myAppType, myOptType;
+
+  void SensorsPrint (uint8_t App_size);
+
+  typedef nx_struct Mail{          // B에서 오는 데이터를 받을 구조체
+    nx_uint16_t ultra;
+    nx_uint16_t temper;
+  }Mail;
+  Mail * ptr = NULL;
+
+  bool lcd_busy = 0;             // lcd 가 한번에 라인1과 라인2를 디스플레이 할수 없어서
+                                     // 번갈아서 디스플레이 할 수 있게 변수를 두었음
+  uint16_t T_temp, T_humi;
+  uint16_t mytemp = 0;
+  uint16_t myhumi = 0;
+
+  int ultra_recv;
+  int temp_recv;
+  double Tavg = 0;         // 평균, 합계, 카운트, 임시저장변수 등등등
+  double Uavg = 0; 
+  int Usum = 0;
+  int Tsum = 0;
+  int B_ultra = 0;
+  int B_temp = 0;
+  int num = 0;
+  int arr[2];
+  int store = 0; 
+
+  void report_sensing() { call Leds.led2Toggle(); }          // 센싱후 노란 led 토글
+  void report_received() { call Leds.led1Toggle(); }        // 데이터 수신 후 초록 led 토글
+
+void calc_SHT11(uint16_t p_humidity ,uint16_t p_temperature)        // 온도 습도 계산하는 함수
+{                                                                                    // 기존 온/습도 센싱 예제 내용
+  const float C1=-4.0;
+  const float C2= 0.0405;
+  const float C3=-0.0000028;
+  const float T1=0.01;
+  const float T2=0.00008;
+
+
+  float rh_lin;
+  float rh_true;
+  float t_C;
+  float rh=(float)p_humidity;
+  float t=(float)p_temperature;
+      
+  t_C=t*0.01 - 40;
+  rh_lin=C3*rh*rh + C2*rh + C1;
+  rh_true=(t_C-25)*(T1+T2*rh)+rh_lin;
+  if(rh_true>100)rh_true=100;
+  if(rh_true<0.1)rh_true=0.1;
+  mytemp=(uint16_t)t_C;
+  myhumi=(uint16_t)rh_true;
+}
+
+  task void TryToConfigure() {call Interaction.StartConfiguration (&AP_Frame);}
+  task void TryToSetTimer()  {call Interaction.SetSamplingTime(Default_Sampling_Time);}
+
+  void lcd_absensor();          
+  void lcd_bavg();
+ 
+  event void Boot.booted() {                // 부트 !
+
+    call Timer2.startOneShot(1000);
+
+    call RadioControl.start();
+    call SCSuartDBGstd.start();
+    post TryToConfigure();
+  }
+
+ event void Timer2.fired(){                // 타이머2,3 은 B와 A의 센싱값의 차이를 표현하기위해 존재
+  call Leds.led0On();
+  call Timer3.startOneShot(100);
+  store = (B_temp - arr[1]);
+     if(store < 0)
+   {   store = store * -1;   }
+
+  if(store <= 1)                                  // 차이가 2이상이면 깜빡이는 속도 빨라짐
+  {   call Timer2.startOneShot(1000); }
+ else if(store > 1)
+   {    call Timer2.startOneShot(300);   }
+
+}
+
+event void Timer3.fired(){
+  call Leds.led0Off();
+}
+
+
+  event void Interaction.StartDoneConfiguration(uint8_t appType, uint8_t optType) {         // 쭉 LCD 예제 내용
+
+    sprintf(MsgBuff, "%d myAppType:%X, myOptType:%X\r\n", TOS_NODE_ID, appType, optType);
+    call SCSuartDBG.UARTSend(MsgBuff, strlen(MsgBuff));
+ 
+    if (optType != MyOPT_Type) {
+  post TryToConfigure();
+  return;
+    }
+  
+    myAppType = appType;
+    myOptType = optType;
+  }
+
+  event void Interaction.getSensorDataDone(App_struct_t *App_Payload, uint8_t App_size){
+    sprintf(MsgBuff, "TLCD SW:%d\r\n", AP_Frame.AppData.sensor.Sdata.CHA_data[0]);
+    call SCSuartDBG.UARTSend(MsgBuff, strlen(MsgBuff));
+  }
+
+  event void Interaction.Urgency_Data (uint8_t *Urgency_Payload, uint8_t len) {
+  }
+
+  event void Timer1.fired(){        // 타이머 만료마다 lcd 의 라인1,2가 번갈아 디스플레이됨
+
+  if(lcd_busy == 0)
+     {    lcd_absensor();   }
+   else if (lcd_busy == 1)
+        {    lcd_bavg();   }
+  }
+
+
+  event void RadioControl.startDone(error_t error) {
+  }
+
+  event void RadioControl.stopDone(error_t error) {}
+
+  event message_t *RadioReceive.receive[am_id_t id](message_t *msg,      // 데이터를 받을때 마다 동작을 함
+                void *payload,
+                uint8_t len) {
+    message_t *ret = msg;
+   
+       ptr = (Mail * )payload;
+  
+   num += 1;                                         // B에서 받은 값을 기초로 계산
+    ultra_recv = (ptr->ultra);
+    B_ultra = Uavg + ultra_recv;
+    Usum +=  B_ultra;
+    Uavg = (double)Usum / (double)num;
+
+    temp_recv = (ptr->temper);
+    B_temp = Tavg + temp_recv;
+    Tsum +=  B_temp;
+    Tavg = (double)Tsum / (double)num;
+
+       report_received();
+       call URead.read();                      // 모트 A 에서의 센싱 시작
+     call Timer1.startOneShot(0);
+   
+return ret;
+  }
+
+event void URead.readDone(error_t result, uint16_t data) {
+  if (result != SUCCESS)
+  {
+	    data = 0xffff;
+  }
+    arr[0] = data;
+   call TRead.read();
+}
+
+event void TRead.readDone(error_t result, uint16_t data){
+  if (result == SUCCESS)
+  {
+    atomic {T_temp = data;}
+    call HRead.read();
+  }
+}
+
+event void HRead.readDone(error_t result, uint16_t data){
+  if (result == SUCCESS)
+  {
+    atomic {T_humi = data;}
+    calc_SHT11(T_humi, T_temp);
+    arr[1] = mytemp;
+   
+   report_sensing();
+  }
+}
+ ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+  void lcd_absensor() {                // A와 B의 센싱값 출력, lcd_busy가 0일때 실행
+
+    Cmd_struct_t CMD_Frame;
+    char SetDataBuff[32];
+
+    CMD_Frame.CMDType = PACKET_CONTROL;
+    CMD_Frame.CMD_Data.OptConfig.packetType = PACKET_CONTROL;
+    CMD_Frame.CMD_Data.OptConfig.optType = OPT_TEXTLCD;
+
+    CMD_Frame.CMD_Data.OptConfig.subCmd1 = LCDLine1;
+
+    sprintf(SetDataBuff, "B:%d,%dA:%d,%d           ",B_temp,  B_ultra, arr[1] , arr[0]);
+    memcpy(CMD_Frame.CMD_Data.OptConfig.ConfigData.GeneralData, SetDataBuff, 16);
+
+    call Interaction.Process_CMD((void*)&CMD_Frame, sizeof(Cmd_struct_t));
+    lcd_busy = 1;                    // 끝날때 1로 바꿔줌
+  }
+
+  void lcd_bavg() {                    // B의 평균값 출력, lcd_busy가 1일때 실행
+
+    Cmd_struct_t CMD_Frame;
+    char SetDataBuff[32];
+
+    CMD_Frame.CMDType = PACKET_CONTROL;
+    CMD_Frame.CMD_Data.OptConfig.packetType = PACKET_CONTROL;
+    CMD_Frame.CMD_Data.OptConfig.optType = OPT_TEXTLCD;
+
+    CMD_Frame.CMD_Data.OptConfig.subCmd1 = LCDLine2;
+    
+                                            // %f 로 실수표현이 불가능 하기 때문에 부동소수점 연산을 이용하여 소수부분을 표현하였음
+    sprintf(SetDataBuff, "B_avg:%d.%d,%d.%d               ",(int)Tavg,(int)(Tavg*10)%10,(int)Uavg,(int)(Uavg*10)%10);
+    memcpy(CMD_Frame.CMD_Data.OptConfig.ConfigData.GeneralData, SetDataBuff, 16);
+
+    call Interaction.Process_CMD((void*)&CMD_Frame, sizeof(Cmd_struct_t));
+
+      lcd_busy = 0;              // 끝날때 0으로 바꿔줌
+  }
+}
+

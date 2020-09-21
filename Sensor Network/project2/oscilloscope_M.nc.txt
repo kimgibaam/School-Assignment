@@ -1,0 +1,172 @@
+#include "Timer.h"
+#include "Oscilloscope.h"
+
+#define standard 28         // 기준값(임의설정)
+
+module OscilloscopeC
+{
+  uses {
+    interface Boot;
+    interface SplitControl as RadioControl;         // 통신관련 인터페이스
+    interface AMSend;
+    interface Timer<TMilli> as Timer1;
+    interface Timer<TMilli> as Timer2;
+    interface Timer<TMilli> as Timer3;
+    interface Read<uint16_t> as TRead;           // 센서 인터페이스들
+    interface Read<uint16_t> as HRead;
+    interface Read<uint16_t> as URead;
+    interface Leds;
+    interface Packet;
+       }
+}
+
+implementation
+{
+  typedef nx_struct Mail{                  // A로 값을 담아보낼 구조체
+	nx_uint16_t ultra;
+	nx_uint16_t temper;
+  }Mail;
+
+   message_t sendbuf;
+   bool sendbusy;
+   oscilloscope_t local;
+   uint8_t reading;
+
+  uint16_t T_temp, T_humi;
+  uint16_t mytemp = 0;
+  uint16_t myhumi = 0;
+ 
+  int Tavg = 0;   int Tsum = 0;         // 평균,합계,카운트 등 변수
+  int Uavg = 0;   int Usum = 0;
+  int num = 0;    int store = 0;
+
+  void report_send() { call Leds.led1Toggle(); }           // 전송후 초록색 토글
+  void report_sensing() { call Leds.led2Toggle(); }         // 센싱후 노란색 토글
+
+void calc_SHT11(uint16_t p_humidity ,uint16_t p_temperature)    // 온/습도 계산
+{ 
+  const float C1=-4.0;
+  const float C2= 0.0405;
+  const float C3=-0.0000028;
+  const float T1=0.01;
+  const float T2=0.00008;
+
+
+  float rh_lin;
+  float rh_true;
+  float t_C;
+  float rh=(float)p_humidity;
+  float t=(float)p_temperature;
+      
+  t_C=t*0.01 - 40;
+  rh_lin=C3*rh*rh + C2*rh + C1;
+  rh_true=(t_C-25)*(T1+T2*rh)+rh_lin;
+  if(rh_true>100)rh_true=100;
+  if(rh_true<0.1)rh_true=0.1;
+  mytemp=(uint16_t)t_C;
+  myhumi=(uint16_t)rh_true;
+}
+
+
+ event void Boot.booted() {
+       call RadioControl.start();        // 연결
+  }
+
+void startTimer() {
+
+   call URead.read();
+   reading = 0; 
+     call Timer2.startOneShot(1000);    
+}
+
+event void Timer2.fired() {             // 기준값과의 차이를 표현하는 타이머
+  call Leds.led0On();
+  call Timer3.startOneShot(100);    
+  store = (mytemp - standard);
+   if(store <0)
+        { store = store * -1; }
+  if(store <= 1)                                   // 기준값과 2이상 차이나면 깜빡임이 빨라진다      
+    {
+           call Timer2.startOneShot(1000);   
+     } 
+else if(store >1)
+    {
+           call Timer2.startOneShot(300);   
+     }        
+}
+
+event void Timer3.fired() {
+  call Leds.led0Off();
+}
+
+  event void RadioControl.startDone(error_t error) {
+    startTimer();
+  }
+
+  event void RadioControl.stopDone(error_t error) {
+  }
+
+event void URead.readDone(error_t result, uint16_t data) {
+  if (result != SUCCESS)
+  {
+	    data = 0xffff;
+  }
+  local.readings[0] = (data - Uavg);    // 차이를 보내고
+  num++;
+  Usum += data;        // 데이터값 합치고
+  Uavg = Usum / num;          // 나눠서 평균다시만들고
+  
+  call TRead.read();
+}
+
+event void TRead.readDone(error_t result, uint16_t data){
+  if (result == SUCCESS)
+  {
+    atomic {T_temp = data;}
+    call HRead.read();
+  }
+}
+
+event void HRead.readDone(error_t result, uint16_t data){
+  if (result == SUCCESS)
+  {
+    atomic {T_humi = data;}
+    calc_SHT11(T_humi, T_temp);
+    local.readings[1] = (mytemp - Tavg);    // 차이를 보내고
+
+    Tsum += mytemp;        // 데이터값 합치고
+    Tavg = Tsum / num;          // 나눠서 평균다시만들고
+    
+    report_sensing();
+    call Timer1.startOneShot(1000);
+  }
+}
+
+event void Timer1.fired() {         // 센싱후 타이머 만료후 데이터 전송
+  if(!sendbusy)
+  {
+             Mail* ptr = (Mail*)(call Packet.getPayload(&sendbuf, (int)(sizeof(Mail))));
+       ptr->ultra = local.readings[0];
+       ptr->temper = local.readings[1];
+	   if (call AMSend.send(AM_BROADCAST_ADDR, &sendbuf, sizeof(Mail)) == SUCCESS)
+	      sendbusy = TRUE;
+
+	reading = 0;
+  }
+    call URead.read();
+}
+
+
+  event void AMSend.sendDone(message_t* msg, error_t error) {
+    if (error == SUCCESS)
+      report_send();
+
+    sendbusy = FALSE;
+}
+
+}
+
+
+
+
+   
