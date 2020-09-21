@@ -6,7 +6,7 @@
 # multi thread program execution time
 ![image](https://user-images.githubusercontent.com/53115254/93728502-24252a80-fbfb-11ea-81e1-9baea04315b6.png)
 
-- The single thread program took approximately 4.6 seconds.
+The single thread program took approximately 4.6 seconds.
 The multithreaded program took approximately 2.2 seconds to perform.
 
 The performance speed has been improved by about 2.1 times.
