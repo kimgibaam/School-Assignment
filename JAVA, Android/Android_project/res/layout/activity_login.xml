@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:gravity="center"
+    android:layout_marginBottom="30dp"
+    >
+
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Log in!"
+        android:textColor="@color/colorSSky"
+        android:textSize="50dp"
+        android:layout_marginBottom="30dp"
+        />
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="email"
+        android:layout_marginBottom="10dp"
+        android:id="@+id/EditText_email">
+
+    </EditText>
+
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="password"
+        android:layout_marginBottom="10dp"
+        android:id="@+id/EditText_password"
+        android:inputType="textPassword">
+
+    </EditText>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorPink"
+        android:id="@+id/login_button"
+        android:clickable="true"
+        android:layout_marginBottom="10dp"
+        android:paddingRight="10dp"
+        >
+
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:text="Log in"
+            android:textSize="15dp"
+            android:textColor="#000000"
+            android:gravity="center"
+            />
+
+    </LinearLayout>
+
+
+    <com.google.android.gms.common.SignInButton
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="15dp"
+        android:id="@+id/Google_Button"
+        />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="혹시 회원이 아니신가요?"
+        android:gravity="center"
+        android:layout_marginBottom="3dp"
+        />
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="간편 회원가입"
+        android:textColor="@android:color/black"
+        android:textSize="16sp"
+        android:id="@+id/sign_up_login"
+        android:background="@color/colorSky"
+        />
+
+
+</LinearLayout>

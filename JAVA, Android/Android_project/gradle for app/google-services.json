@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "193452329579",
+    "firebase_url": "https://embedded-37fdd.firebaseio.com",
+    "project_id": "embedded-37fdd",
+    "storage_bucket": "embedded-37fdd.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193452329579:android:c66a83599c11463be2ff2e",
+        "android_client_info": {
+          "package_name": "com.example.embedded"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "193452329579-vt453doal6260pubamir05c7pvichuel.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAd-3H3PLPQR0Rs4q5_tZMzLdaGs-JziKo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "193452329579-vt453doal6260pubamir05c7pvichuel.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
