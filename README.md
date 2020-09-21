@@ -1,2 +1,3 @@
 # School-Assignment
--See Markdown files in each project folder!
+
+- See Markdown files in each project folder!
