@@ -1,4 +1,4 @@
-# multithreaded prime numbers discriminant program !
+# multithreaded prime numbers discriminant program !!
 
 # single thread program execution time
 ![image](https://user-images.githubusercontent.com/53115254/93728488-17083b80-fbfb-11ea-83ab-1b0bf4bf0fd4.png)
