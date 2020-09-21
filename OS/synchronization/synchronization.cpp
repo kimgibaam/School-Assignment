@@ -6,8 +6,8 @@ int min, max;                  // 입력값
 int q[2024];              // 큐
 int rear, front = 0;        // 큐의 머리와 꼬리
 int count = 0;             // 카운트 = 생산 - 소비
-int pro = 0;             // 생산 갯수 나타냄
-int con = 0;                // 소비 갯수 나타냄
+int pro = 0;             // 생산 갯수
+int con = 0;                // 소비 갯수
 int LSD_freq[10];
 int MSD_freq[10];
 HANDLE hMutex;              // 뮤텍스 핸들

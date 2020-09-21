@@ -1,4 +1,4 @@
-# Synchronization program
+# Synchronization program !
 
 - Producer threads that store prime numbers of integers between n and m in the queue
 - The consumer thread takes the prime number out of the queue and obtains the frequency of the decimal number of MSD and LSD
